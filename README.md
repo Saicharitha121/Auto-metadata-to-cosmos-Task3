@@ -1,53 +1,63 @@
 # Auto-metadata-to-cosmos-Task3
 
-This Azure Function runs every night at 02:00 UTC, finds all Orders older than 30 days in Azure SQL, archives them into NDJSON files in Blob Storage, and deletes those rows from the database after successful archiving.
+
+This project automatically indexes metadata and text details from blobs uploaded into the documents container. When a new blob is created, Event Grid triggers a Function App, which extracts metadata + content and stores an indexed record in Cosmos DB.
 
 1. Prerequisites
-Azure Resources Needed
+Azure Resources Required
 
-- Azure SQL Database
+-Storage Account
 
-- Must contain an Orders table with a OrderDate field.
+Must have a documents container.
 
-- Server firewall must allow Azure services or Function App IP.
+Event Grid must be enabled for blob-created events.
 
-Azure Storage Account
+- Azure Function App
 
-- Container: archive
+Language: Python 
 
-Output folder structure:
-archive/orders/YYYY/MM/DD/
+Must support Event Grid trigger.
 
--Azure Function App
+- Cosmos DB (Core SQL API)
 
--Runtime: Python or C#
+Database: DocumentsDB
 
--Timer trigger enabled.
+Container: Documents (Partition key: /id)
 
+Unique key: /id (to prevent duplicates)
 
-Local Development Requirements
+2. Local Development Requirements
 
-- VS Code or Visual Studio
+- Visual Studio Code / Visual Studio
 
 - Azure Functions Core Tools
 
-- Python 3.9+ (if using Python)
+- Python Libaries: azure-functions , azure-storage-blob , azure-cosmos
 
- - Azure CLI
+3. Event Flow Overview
+
+- A new blob is uploaded to documents container.
+
+- Storage Account sends BlobCreated event to Event Grid.
+
+- Event Grid triggers Azure Function.
+
+Function extracts:
+blobName
+container
+URL
+contentType
+size
+title (first H1 or first line)
+wordCount (for text files)
+
+- Inserts/upserts document into Cosmos DB with the given data
 
 
-What the Function Does
+4. Expected Output
 
-- Connects to Azure SQL.
+Cosmos DB contains a record for every uploaded blob.
 
-- Selects records older than 30 days using batching (e.g., 1000 rows).
+Re-uploading the same file updates the existing document.
 
-- Generates an NDJSON file with one JSON object per line.
-
-- Saves the file to Blob Storage:
-
-- Deletes the same rows from SQL inside a transaction.
-
-NDJSON Example Output
-{"OrderID":1, "Customer":"Sai", "Amount":200, "OrderDate":"2024-09-20"}
-{"OrderID":2, "Customer":"Charitha", "Amount":150, "OrderDate":"2024-09-10"}
+Function logs show successful indexing.
